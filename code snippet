@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe with Difficulty Levels</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 320px;
+            margin: auto;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            border: 2px solid #ccc;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .cell:hover {
+            background-color: #f1f1f1;
+        }
+
+        .cell.taken {
+            cursor: not-allowed;
+        }
+
+        .winner {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .control-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .message {
+            margin-top: 15px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container game-container">
+        <div class="text-center">
+            <h1 class="mb-4">Tic-Tac-Toe</h1>
+            <div class="board" id="board"></div>
+            <p class="message" id="message">Player X's Turn</p>
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="resetGame()">Restart Game</button>
+                <button class="btn btn-secondary" onclick="setDifficulty('easy')">Easy</button>
+                <button class="btn btn-warning" onclick="setDifficulty('medium')">Medium</button>
+                <button class="btn btn-danger" onclick="setDifficulty('hard')">Hard</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const message = document.getElementById('message');
+        let gameState = Array(9).fill('');
+        let currentPlayer = 'X';
+        let difficulty = 'easy';
+
+        const winningCombinations = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6],
+        ];
+
+        function initializeBoard() {
+            board.innerHTML = '';
+            gameState = Array(9).fill('');
+            currentPlayer = 'X';
+            message.textContent = "Player X's Turn";
+
+            gameState.forEach((_, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = index;
+                cell.addEventListener('click', handleCellClick);
+                board.appendChild(cell);
+            });
+        }
+
+        function handleCellClick(e) {
+            const index = e.target.dataset.index;
+
+            if (gameState[index] || checkWinner()) return;
+
+            gameState[index] = currentPlayer;
+            e.target.textContent = currentPlayer;
+            e.target.classList.add('taken');
+
+            if (checkWinner()) {
+                message.innerHTML = `<span class="winner">Player ${currentPlayer} Wins!</span>`;
+                return;
+            } else if (gameState.every(cell => cell)) {
+                message.textContent = "It's a Tie!";
+                return;
+            }
+
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            message.textContent = `Player ${currentPlayer}'s Turn`;
+
+            if (currentPlayer === 'O') {
+                computerMove();
+            }
+        }
+
+        function checkWinner() {
+            return winningCombinations.some(combination => {
+                return combination.every(index => gameState[index] === currentPlayer);
+            });
+        }
+
+        function resetGame() {
+            initializeBoard();
+        }
+
+        function setDifficulty(level) {
+            resetGame();
+            difficulty = level;
+            message.textContent = `Difficulty set to ${level.toUpperCase()}. Player X's Turn`;
+        }
+
+        function computerMove() {
+            let move;
+            if (difficulty === 'easy') {
+                move = easyMove();
+            } else if (difficulty === 'medium') {
+                move = mediumMove();
+            } else if (difficulty === 'hard') {
+                move = hardMove();
+            }
+
+            setTimeout(() => {
+                const cell = document.querySelector(`.cell[data-index='${move}']`);
+                gameState[move] = currentPlayer;
+                cell.textContent = currentPlayer;
+                cell.classList.add('taken');
+
+                if (checkWinner()) {
+                    message.innerHTML = `<span class="winner">Player ${currentPlayer} Wins!</span>`;
+                    return;
+                } else if (gameState.every(cell => cell)) {
+                    message.textContent = "It's a Tie!";
+                    return;
+                }
+
+                currentPlayer = 'X';
+                message.textContent = `Player ${currentPlayer}'s Turn`;
+            }, 500);
+        }
+
+        function easyMove() {
+            const emptyCells = gameState.map((val, idx) => (val === '' ? idx : null)).filter(val => val !== null);
+            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+
+        function mediumMove() {
+            // Check for winning move
+            const winMove = findBestMove(currentPlayer);
+            if (winMove !== null) return winMove;
+
+            // Check to block opponent's win
+            const blockMove = findBestMove('X');
+            if (blockMove !== null) return blockMove;
+
+            // Default to random
+            return easyMove();
+        }
+
+        function hardMove() {
+            return minimax(gameState, 'O').index;
+        }
+
+        function findBestMove(player) {
+            for (const combo of winningCombinations) {
+                const values = combo.map(index => gameState[index]);
+                if (values.filter(v => v === player).length === 2 && values.includes('')) {
+                    return combo[values.indexOf('')];
+                }
+            }
+            return null;
+        }
+
+        function minimax(state, player) {
+            const emptyCells = state.map((val, idx) => (val === '' ? idx : null)).filter(val => val !== null);
+            if (checkWinnerForState(state, 'X')) return { score: -10 };
+            if (checkWinnerForState(state, 'O')) return { score: 10 };
+            if (emptyCells.length === 0) return { score: 0 };
+
+            const moves = [];
+
+            for (const cell of emptyCells) {
+                const newState = [...state];
+                newState[cell] = player;
+                const result = minimax(newState, player === 'O' ? 'X' : 'O');
+                moves.push({ index: cell, score: result.score });
+            }
+
+            return moves.reduce((best, move) =>
+                (player === 'O' ? move.score > best.score : move.score < best.score) ? move : best
+            );
+        }
+
+        function checkWinnerForState(state, player) {
+            return winningCombinations.some(combo => combo.every(idx => state[idx] === player));
+        }
+
+        initializeBoard();
+    </script>
+
+</body>
+</html>
